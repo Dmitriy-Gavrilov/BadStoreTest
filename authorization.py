@@ -7,6 +7,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
 
+# Поиск динамически появляющегося элемента
 def wait_of_element_located(driver, xpath):
     return WebDriverWait(driver, 3).until(EC.presence_of_element_located((By.XPATH, xpath)))
 
@@ -19,7 +20,8 @@ def driver():
     driver.quit()
 
 
-def test_auth(driver):
+#  Авторизация
+def auth(driver):
     # Поиск элементов на странице
     login = driver.find_element(by=By.XPATH, value="/html/body/table[2]/tbody/tr/td[3]/font/form[1]/input")
     password = driver.find_element(by=By.XPATH, value="/html/body/table[2]/tbody/tr/td[3]/font/form[1]/p[1]/input")
@@ -30,13 +32,37 @@ def test_auth(driver):
     password.send_keys("abcd")
     auth_button.click()
 
+
+# Регистрация
+def register(driver):
+    full_name = driver.find_element(by=By.XPATH, value="/html/body/table[2]/tbody/tr/td[3]/font/form[2]/input")
+    email = driver.find_element(by=By.XPATH, value="/html/body/table[2]/tbody/tr/td[3]/font/form[2]/p[1]/input")
+    password = driver.find_element(by=By.XPATH, value="/html/body/table[2]/tbody/tr/td[3]/font/form[2]/p[2]/input")
+    register_button = driver.find_element(by=By.XPATH,
+                                          value="/html/body/table[2]/tbody/tr/td[3]/font/form[2]/p[5]/input[2]")
+
+    full_name.send_keys("Dmitriy")
+    email.send_keys("abcd@gmail.com")
+    password.send_keys("abcd")
+    register_button.click()
+
+
+def find_greet_text(driver):
     # Переключение на страницу с приветствием
     iframe = driver.find_element(by=By.XPATH,
                                  value="/html/body/table[2]/tbody/tr/td[3]/table[2]/tbody/tr[2]/td[1]/iframe")
     driver.switch_to.frame(iframe)
 
-    # Проверка надписи приветствия
-    greet_text = wait_of_element_located(driver, "/html/body/font/b")
-    assert greet_text.text != "{Unregistered User}"
+    return wait_of_element_located(driver, "/html/body/font/b")
 
-    driver.switch_to.default_content()
+
+def test_auth(driver):
+    auth(driver)
+
+    assert find_greet_text(driver).text != "{Unregistered User}"
+
+
+def test_registration(driver):
+    register(driver)
+
+    assert find_greet_text(driver).text != "{Unregistered User}"
