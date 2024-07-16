@@ -1,82 +1,22 @@
 import pytest
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.support.ui import WebDriverWait
-from autotests.login.test_registration import register
-from autotests.cart.test_adding import add_to_cart
+from autotests.pages.cart_page import CartPage
+from autotests.pages.order_page import OrderPage
+from autotests.utils import wait_of_element_located
 
 
-def order(driver, card_number, date, email=None):
-    card_input = driver.find_element(By.XPATH, "/html/body/table[2]/tbody/tr/td[3]/font/form/p[1]/input[1]")
-    date_input = driver.find_element(By.XPATH, "/html/body/table[2]/tbody/tr/td[3]/font/form/p[1]/input[2]")
-
-    card_input.send_keys(card_number)
-    date_input.send_keys(date)
-
-    if email:
-        email_input = driver.find_element(By.XPATH, "/html/body/table[2]/tbody/tr/td[3]/font/form/input")
-        email_input.send_keys(email)
-
-    order_btn = driver.find_element(By.XPATH, "/html/body/table[2]/tbody/tr/td[3]/font/form/center/p[2]/input")
-    order_btn.click()
-
-
-@pytest.mark.parametrize("email, card_number, date, alert_text", [
-    ("abcd@gmail.com", "5536914058056216", "22/29", "Thank you for using MasterCard!"),
-    ("", "", "", "You haven't entered enough information!"),
-    ("-&/", "5536914058056216", "22/29", "Only valid numbers are allowed - and no spaces or dashes!"),
-    ("abcd@gmail.com", "6437829-j,", "22/29", "Only valid numbers are allowed - and no spaces or dashes!"),
-    ("abcd@gmail.com", "5536914058056216", "-=.?", "Only valid numbers are allowed - and no spaces or dashes!"),
+@pytest.mark.parametrize("count_items,address,city,state,zip_code,card_type,card_number,card_name,expected_text", [
+    (3, "address", "city", "state", "zip_code", "Visa", "1234567890123456", "John Doe", "Thank you for your order!"),
+    (0, "address", "city", "state", "zip_code", "Visa", "1234567890123456", "John Doe",
+     "You have no items in your cart."),
 ])
-def test_payment(driver, email, card_number, date, alert_text):
-    order(driver, card_number, date, email)
-
-    alert = WebDriverWait(driver, 1).until(EC.alert_is_present())
-
-    assert alert.text == alert_text
-
-
-def test_previous_orders(driver):
-    order_url = driver.current_url
-
-    driver.get("http://192.168.31.203/cgi-bin/badstore.cgi?action=whatsnew")
-    add_to_cart(driver, 2)
-
-    driver.get(order_url)
-
-    order(driver, "5536914058056216", "22/29", "abcd@gmail.com")
-
-    alert = WebDriverWait(driver, 1).until(EC.alert_is_present())
-    alert.accept()
-
-    previous_orders_link = driver.find_element(By.XPATH,
-                                               "/html/body/table[2]/tbody/tr/td[1]/table/tbody/tr[2]/td/p[3]/a")
-    previous_orders_link.click()
-
-    items = driver.find_elements(By.XPATH, "/html/body/table[2]/tbody/tr/td[3]/font/p[1]/table")
-
-    assert items
-
-
-def test_previous_orders_auth(driver):
-    order_url = driver.current_url
-
-    driver.get("http://192.168.31.203/cgi-bin/badstore.cgi?action=loginregister")
-    register(driver, "User", "qwerty@gmail.com", "password123")
-
-    driver.get("http://192.168.31.203/cgi-bin/badstore.cgi?action=whatsnew")
-    add_to_cart(driver, 2)
-
-    driver.get(order_url)
-    order(driver, "5536914058056216", "22/29")
-
-    alert = WebDriverWait(driver, 1).until(EC.alert_is_present())
-    alert.accept()
-
-    previous_orders_link = driver.find_element(By.XPATH,
-                                               "/html/body/table[2]/tbody/tr/td[1]/table/tbody/tr[2]/td/p[3]/a")
-    previous_orders_link.click()
-
-    items = driver.find_elements(By.XPATH, "/html/body/table[2]/tbody/tr/td[3]/font/p[1]/table")
-
-    assert items
+def test_order(driver, count_items, address, city, state, zip_code, card_type, card_number, card_name, expected_text):
+    cart_page = CartPage(driver)
+    cart_page.add_to_cart(count_items)
+    cart_page.go_to_cart()
+    if count_items > 0:
+        order_button = wait_of_element_located(driver, "/html/body/table[2]/tbody/tr/td[3]/font/form/center/input[1]")
+        order_button.click()
+        order_page = OrderPage(driver)
+        order_page.fill_order_form(address, city, state, zip_code, card_type, card_number, card_name)
+    result_str = wait_of_element_located(driver, "/html/body/table[2]/tbody/tr/td[3]/font/h2")
+    assert result_str.text == expected_text
